@@ -1,0 +1,22 @@
+# Secrets
+.env
+.streamlit/secrets.toml
+
+# Local FAISS index
+vectorstore/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
