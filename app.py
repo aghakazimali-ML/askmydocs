@@ -181,7 +181,13 @@ def process_documents(cfg: SidebarState, api_key: str, samples: list[Path] | Non
             else:
                 docs = load_url(item, settings.url_timeout_seconds)
             chunks = split_documents(docs, cfg.chunk_size, cfg.chunk_overlap)
-            st.session_state.vectorstore = add_chunks(st.session_state.vectorstore, chunks, embeddings)
+
+            def report(done: int, total: int, wait: float, i: int = i, name: str = name) -> None:
+                base = (i - 1 + done / total) / len(sources)
+                note = f" (free-tier rate limit, waiting {wait:.0f}s)" if wait else ""
+                progress.progress(min(base, 1.0), text=f"Embedding {name}: {done}/{total} chunks{note}…")
+
+            st.session_state.vectorstore = add_chunks(st.session_state.vectorstore, chunks, embeddings, on_progress=report)
         except DocumentLoadError as exc:
             st.error(str(exc), icon=":material/error:")
             continue

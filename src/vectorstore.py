@@ -6,6 +6,8 @@ import hashlib
 import json
 import logging
 import shutil
+import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -30,18 +32,61 @@ def embedding_signature(provider: str, model: str) -> str:
     return f"{provider}:{model}"
 
 
-def add_chunks(store: FAISS | None, chunks: list[Document], embeddings: Embeddings) -> FAISS:
-    """Embed chunks and add them to `store`, creating a new FAISS index if `store` is None."""
+EMBED_BATCH_SIZE = 40
+RATE_LIMIT_WAITS = (10, 20, 40, 60, 60)  # seconds; free Gemini keys allow only a few embedding requests per minute
+
+
+def is_rate_limit_error(exc: Exception) -> bool:
+    text = f"{type(exc).__name__}: {exc}".lower()
+    return any(s in text for s in ("quota", "rate limit", "ratelimit", "resource_exhausted", "resourceexhausted", "429"))
+
+
+def add_chunks(
+    store: FAISS | None,
+    chunks: list[Document],
+    embeddings: Embeddings,
+    *,
+    batch_size: int = EMBED_BATCH_SIZE,
+    waits: tuple[float, ...] = RATE_LIMIT_WAITS,
+    on_progress: Callable[[int, int, float], None] | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+) -> FAISS:
+    """Embed chunks in small batches and add them to `store` (a new index if None).
+
+    Batches that hit a provider rate limit are retried after a growing pause, so large PDFs
+    still go through on free-tier keys. The file is only merged into `store` once every batch
+    succeeds, so a failure never leaves a half-indexed document behind.
+    on_progress(done, total, wait_seconds) is called after each batch and before each pause.
+    """
     if not chunks:
         if store is None:
             raise ValueError("Cannot build an index from zero chunks.")
         return store
-    ids = [str(c.metadata.get("chunk_id")) for c in chunks]
+    logger.info("Embedding %d chunks in batches of %d", len(chunks), batch_size)
+    staged: FAISS | None = None
+    for start in range(0, len(chunks), batch_size):
+        batch = chunks[start:start + batch_size]
+        ids = [str(c.metadata.get("chunk_id")) for c in batch]
+        for attempt in range(len(waits) + 1):
+            try:
+                if staged is None:
+                    staged = FAISS.from_documents(batch, embeddings, ids=ids)
+                else:
+                    staged.add_documents(batch, ids=ids)
+                break
+            except Exception as exc:
+                if not is_rate_limit_error(exc) or attempt == len(waits):
+                    raise
+                wait = waits[attempt]
+                logger.warning("Rate limited after %d/%d chunks; retrying in %ss", start, len(chunks), wait)
+                if on_progress:
+                    on_progress(start, len(chunks), wait)
+                sleep(wait)
+        if on_progress:
+            on_progress(min(start + batch_size, len(chunks)), len(chunks), 0)
     if store is None:
-        logger.info("Building new FAISS index with %d chunks", len(chunks))
-        return FAISS.from_documents(chunks, embeddings, ids=ids)
-    logger.info("Adding %d chunks to existing FAISS index", len(chunks))
-    store.add_documents(chunks, ids=ids)
+        return staged
+    store.merge_from(staged)
     return store
 
 

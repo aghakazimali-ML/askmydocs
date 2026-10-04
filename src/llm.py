@@ -87,7 +87,7 @@ def describe_provider_error(exc: Exception) -> str:
     if any(s in text for s in ("api key not valid", "api_key_invalid", "incorrect api key", "invalid_api_key",
                                "authentication", "unauthorized", "401", "permission_denied")):
         return "Your API key was rejected. Please check that it is correct and belongs to the selected provider."
-    if any(s in text for s in ("quota", "rate limit", "ratelimit", "resource_exhausted", "429")):
+    if any(s in text for s in ("quota", "rate limit", "ratelimit", "resource_exhausted", "resourceexhausted", "429")):
         return "The provider's rate limit or quota was reached. Wait a minute and try again, or use another key."
     if any(s in text for s in ("not found", "404", "does not exist", "model_not_found")):
         return "The selected model is not available for your API key. Try another model in the sidebar."
