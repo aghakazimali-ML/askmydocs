@@ -72,8 +72,8 @@ def test_save_and_load_roundtrip(tmp_path) -> None:
 
 def test_helpers() -> None:
     assert content_hash(b"abc") == content_hash("abc")
-    assert format_source_label("a.pdf", 4) == "📄 a.pdf — page 4"
-    assert format_source_label("https://x.com", None) == "🌐 https://x.com"
+    assert format_source_label("a.pdf", 4) == "a.pdf · page 4"
+    assert format_source_label("https://x.com", None) == "https://x.com"
     msgs = [{"role": "user", "content": "q"}, {"role": "assistant", "content": "a"}]
     assert [type(m) for m in to_chat_history(msgs)] == [HumanMessage, AIMessage]
 
@@ -89,4 +89,4 @@ def test_suggestions_and_export() -> None:
         ],
         ["plan.pdf"],
     )
-    assert "📄 plan.pdf — page 1" in md and "## Conversation" in md
+    assert "plan.pdf · page 1" in md and "## Conversation" in md

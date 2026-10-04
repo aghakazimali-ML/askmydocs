@@ -65,7 +65,7 @@ def test_run_tool_markdown_quiz_and_compare_rules() -> None:
     assert summary["markdown"].startswith("### TL;DR") and summary["documents"] == ["plan.pdf", "team.pdf"]
 
     quiz = run_tool(FakeListChatModel(responses=[QUIZ_JSON]), "quiz", CHUNKS, {"count": 2})
-    assert len(quiz["data"]) == 1 and "✅ 50k" in quiz["markdown"]
+    assert len(quiz["data"]) == 1 and "50k **(correct)**" in quiz["markdown"]
 
     with pytest.raises(StudioError):
         run_tool(FakeListChatModel(responses=["x"]), "compare", chunks_for(CHUNKS, ["plan.pdf"]))

@@ -51,3 +51,16 @@ def test_parse_urls_splits_valid_and_invalid() -> None:
     valid, invalid = parse_urls("https://a.com/x\n\nnot a url\nhttp://b.org\nhttps://a.com/x\n")
     assert valid == ["https://a.com/x", "http://b.org"]
     assert invalid == ["not a url"]
+
+
+def test_bundled_samples_load_as_sections() -> None:
+    from pathlib import Path
+
+    from src.loaders import load_markdown_sections
+
+    samples = sorted((Path(__file__).resolve().parents[1] / "docs" / "samples").glob("*.md"))
+    assert len(samples) == 2
+    docs = load_markdown_sections(samples[0])
+    assert len(docs) >= 5
+    assert docs[0].metadata == {"source": samples[0].name, "page": 1, "type": "sample"}
+    assert all(d.page_content.strip() for d in docs)

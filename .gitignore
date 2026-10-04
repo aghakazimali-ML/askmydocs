@@ -20,3 +20,7 @@ dist/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Frontend build tooling
+frontend/node_modules/
+!src/motion/dist/

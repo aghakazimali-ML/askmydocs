@@ -112,10 +112,10 @@ def docs_to_sources(docs: list[Document], preview_chars: int = PREVIEW_CHARS) ->
 
 
 def format_source_label(source: str, page: int | None) -> str:
-    """Human-friendly label, e.g. '📄 report.pdf — page 4' or '🌐 https://example.com'."""
+    """Human-friendly label, e.g. 'report.pdf · page 4' or 'https://example.com'."""
     if page is None:
-        return f"🌐 {source}"
-    return f"📄 {source} — page {page}"
+        return source
+    return f"{source} · page {page}"
 
 
 class StreamedAnswer:

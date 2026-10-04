@@ -30,7 +30,12 @@
 - **5 answer styles** (Concise, Detailed, Bullet points, Simple/ELI5, Executive) and **10 answer languages**
 - 👍 / 👎 feedback on every answer
 - **📊 Library dashboard** with per-document pages, words, reading time and top keywords
-- **✨ One-click sample**: visitors can try every feature on two Wikipedia articles without uploading anything
+- **✨ One-click sample**: visitors can try every feature on a bundled sample contract and quarterly report, with no upload and no outbound requests
+
+### 🎨 Design
+- **Design system generated with [UI/UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)**: flat style, teal + orange palette, Plus Jakarta Sans, SVG icons only. Tokens and rules live in [`design-system/askmydocs/MASTER.md`](design-system/askmydocs/MASTER.md)
+- **React + Framer Motion custom Streamlit component** for the animated landing page (live product demo, staggered reveals), count-up stats and 3D flip flashcards with swipe and keyboard support
+- Honors `prefers-reduced-motion`; WCAG AA contrast on primary actions
 
 ### 🧱 Core
 
@@ -151,6 +156,16 @@ All settings can be set as environment variables or in `.env`. Sidebar values ov
 | `VECTORSTORE_DIR` | `vectorstore` | Where the FAISS index is saved |
 | `LOG_LEVEL` | `INFO` | Python logging level |
 
+## 🎞️ Rebuilding the animated components
+
+The compiled bundle in `src/motion/dist` is committed, so running or deploying the app needs no Node.js. Only rebuild after editing `frontend/src`:
+
+```bash
+cd frontend
+npm install
+npm run build   # writes to ../src/motion/dist
+```
+
 ## 🧪 Running Tests
 
 ```bash
@@ -176,7 +191,11 @@ askmydocs/
 │   ├── export.py              # chat → Markdown
 │   ├── studio.py              # Studio tools (summary, quiz, flashcards, mind map…) + library stats
 │   ├── studio_ui.py           # Studio and Library tab rendering
+│   ├── motion/                # Streamlit custom component wrapper + compiled React bundle (dist/)
 │   └── ui_components.py       # theme CSS, hero, sidebar, landing page, source cards
+├── frontend/                  # React + Framer Motion source for src/motion (Vite)
+├── design-system/             # UI/UX Pro Max design system (MASTER.md)
+├── docs/samples/              # bundled sample documents for the one-click demo
 ├── tests/                     # pytest suite (offline)
 │   ├── conftest.py            # builds sample PDFs in pure Python
 │   ├── test_loaders.py

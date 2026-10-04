@@ -84,8 +84,8 @@ SUMMARY_PROMPT = PromptTemplate.from_template(
 INSIGHTS_PROMPT = PromptTemplate.from_template(
     _STUDIO_RULES
     + "Extract structured insights in Markdown. Use these sections and skip any that have nothing:\n"
-    "### 📊 Key numbers & facts\n### 👥 People & organizations\n### 📅 Dates & deadlines\n"
-    "### ✅ Action items\n### ⚠️ Risks & open questions\n"
+    "### Key numbers & facts\n### People & organizations\n### Dates & deadlines\n"
+    "### Action items\n### Risks & open questions\n"
     "Use short bullet points. Bold the most important figure in each bullet."
 )
 

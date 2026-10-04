@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import streamlit as st
@@ -11,7 +12,7 @@ from src.chain import StreamedAnswer, build_rag_chain, build_retriever, docs_to_
 from src.config import PROVIDER_LABELS, get_settings, setup_logging
 from src.export import chat_to_markdown
 from src.llm import describe_provider_error, get_chat_model, get_embeddings, resolve_api_key
-from src.loaders import DocumentLoadError, load_pdf_bytes, load_url, parse_urls
+from src.loaders import DocumentLoadError, load_markdown_sections, load_pdf_bytes, load_url, parse_urls
 from src.prompts import NOT_FOUND_MESSAGE
 from src.splitter import split_documents
 from src.studio import library_stats
@@ -38,15 +39,15 @@ from src.vectorstore import (
     stored_chunks,
 )
 
-st.set_page_config(page_title="AskMyDocs · Chat with your documents", page_icon="📚", layout="wide")
+st.set_page_config(page_title="AskMyDocs · Chat with your documents", page_icon=":material/description:", layout="wide")
 settings = get_settings()
 setup_logging(settings.log_level)
 logger = logging.getLogger("askmydocs")
 
-SAMPLE_URLS = [
-    "https://en.wikipedia.org/wiki/Retrieval-augmented_generation",
-    "https://en.wikipedia.org/wiki/Large_language_model",
-]
+AVATARS = {"user": ":material/person:", "assistant": ":material/auto_stories:"}
+
+# Bundled offline so the demo works even where outbound requests are blocked.
+SAMPLE_FILES = sorted((Path(__file__).parent / "docs" / "samples").glob("*.md"))
 
 
 # ---------- cached clients ----------
@@ -75,8 +76,6 @@ DEFAULT_STATE: dict[str, Any] = {
     "studio": {},            # tool key -> result from src.studio.run_tool
     "quiz_answers": {},
     "quiz_submitted": False,
-    "card_idx": 0,
-    "card_flipped": False,
 }
 
 
@@ -118,7 +117,7 @@ def try_autoload_index(cfg: SidebarState) -> None:
     provider = manifest["provider"]
     api_key = key_for(provider, cfg.api_key if cfg.provider == provider else "")
     if not api_key:
-        st.sidebar.info(f"💾 A saved index was found. Add your {PROVIDER_LABELS[provider]} key to load it.")
+        st.sidebar.info(f"A saved index was found. Add your {PROVIDER_LABELS[provider]} key to load it.", icon=":material/database:")
         return
     try:
         embeddings = cached_embeddings(provider, manifest["embedding_model"], api_key)
@@ -126,7 +125,7 @@ def try_autoload_index(cfg: SidebarState) -> None:
         st.session_state.documents = manifest.get("documents", [])
         st.session_state.file_hashes = manifest.get("file_hashes", {})
         st.session_state.index_signature = embedding_signature(provider, manifest["embedding_model"])
-        st.toast(f"Loaded saved index with {len(st.session_state.documents)} document(s).", icon="💾")
+        st.toast(f"Loaded saved index with {len(st.session_state.documents)} document(s).", icon=":material/database:")
     except Exception as exc:
         logger.exception("Could not load saved index")
         st.sidebar.warning(f"Saved index could not be loaded: {describe_provider_error(exc)}")
@@ -134,13 +133,12 @@ def try_autoload_index(cfg: SidebarState) -> None:
 
 
 # ---------- ingestion ----------
-def process_documents(cfg: SidebarState, api_key: str, extra_urls: list[str] | None = None) -> None:
-    """Load → split → embed → index all new files and URLs, with progress feedback."""
+def process_documents(cfg: SidebarState, api_key: str, samples: list[Path] | None = None) -> None:
+    """Load → split → embed → index all new files, URLs and bundled samples, with progress feedback."""
     urls, invalid_urls = parse_urls(cfg.urls_text)
-    urls += [u for u in extra_urls or [] if u not in urls]
     for entry in invalid_urls:
         st.warning(f"Skipped invalid URL: `{entry}`")
-    if not cfg.uploaded_files and not urls:
+    if not cfg.uploaded_files and not urls and not samples:
         st.warning("Upload at least one PDF or paste a URL first.")
         return
     if cfg.chunk_overlap >= cfg.chunk_size:
@@ -159,28 +157,37 @@ def process_documents(cfg: SidebarState, api_key: str, extra_urls: list[str] | N
         st.error(describe_provider_error(exc))
         return
 
-    sources: list[tuple[str, str, Any]] = [("pdf", f.name, f) for f in cfg.uploaded_files] + [("url", u, u) for u in urls]
+    sources: list[tuple[str, str, Any]] = (
+        [("pdf", f.name, f) for f in cfg.uploaded_files]
+        + [("url", u, u) for u in urls]
+        + [("sample", p.name, p) for p in samples or []]
+    )
     progress = st.progress(0.0, text="Starting…")
     summary = {"files": 0, "pages": 0, "chunks": 0}
     new_chunks_all = []
 
     for i, (kind, name, item) in enumerate(sources, start=1):
         progress.progress((i - 1) / len(sources), text=f"Processing {name}…")
-        data = item.getvalue() if kind == "pdf" else item
+        data = item.getvalue() if kind == "pdf" else item.read_text(encoding="utf-8") if kind == "sample" else item
         digest = content_hash(data)
         if digest in st.session_state.file_hashes:
-            st.info(f"⏭️ `{name}` is already indexed. Skipped (no re-embedding).")
+            st.info(f"`{name}` is already indexed, so it was skipped.", icon=":material/skip_next:")
             continue
         try:
-            docs = load_pdf_bytes(data, name, settings.max_file_size_mb) if kind == "pdf" else load_url(item, settings.url_timeout_seconds)
+            if kind == "pdf":
+                docs = load_pdf_bytes(data, name, settings.max_file_size_mb)
+            elif kind == "sample":
+                docs = load_markdown_sections(item)
+            else:
+                docs = load_url(item, settings.url_timeout_seconds)
             chunks = split_documents(docs, cfg.chunk_size, cfg.chunk_overlap)
             st.session_state.vectorstore = add_chunks(st.session_state.vectorstore, chunks, embeddings)
         except DocumentLoadError as exc:
-            st.error(f"❌ {exc}")
+            st.error(str(exc), icon=":material/error:")
             continue
         except Exception as exc:
             logger.exception("Embedding failed for %s", name)
-            st.error(f"❌ {name}: {describe_provider_error(exc)}")
+            st.error(f"{name}: {describe_provider_error(exc)}", icon=":material/error:")
             if "API key" in describe_provider_error(exc):
                 break  # every other file would fail the same way
             continue
@@ -216,7 +223,7 @@ def process_documents(cfg: SidebarState, api_key: str, extra_urls: list[str] | N
             st.session_state.suggestions = generate_suggested_questions(llm, st.session_state.all_chunks)
         except Exception as exc:
             logger.warning("Suggestions skipped: %s", exc)
-    st.success(f"✅ Indexed {summary['files']} source(s): {summary['pages']} pages → {summary['chunks']} chunks.")
+    st.success(f"Indexed {summary['files']} source(s): {summary['pages']} pages, {summary['chunks']} chunks.", icon=":material/check_circle:")
 
 
 # ---------- chat ----------
@@ -224,10 +231,10 @@ def answer_question(question: str, cfg: SidebarState, api_key: str) -> None:
     """Stream an answer for `question` and append both turns to the history."""
     history = to_chat_history(st.session_state.messages, settings.max_history_turns)
     st.session_state.messages.append({"role": "user", "content": question, "sources": []})
-    with st.chat_message("user"):
+    with st.chat_message("user", avatar=AVATARS["user"]):
         st.markdown(question)
 
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar=AVATARS["assistant"]):
         try:
             llm = cached_chat_model(cfg.provider, cfg.model, api_key, cfg.temperature)
             retriever = build_retriever(st.session_state.vectorstore, cfg.top_k, cfg.search_type)
@@ -271,7 +278,7 @@ def render_chat_tab(cfg: SidebarState, api_key: str) -> None:
 
     with history_box:
         for i, message in enumerate(st.session_state.messages):
-            with st.chat_message(message["role"]):
+            with st.chat_message(message["role"], avatar=AVATARS[message["role"]]):
                 st.markdown(message["content"])
                 render_sources(message.get("sources", []))
                 if message["role"] == "assistant":
@@ -292,10 +299,11 @@ def render_chat_tab(cfg: SidebarState, api_key: str) -> None:
     if st.session_state.messages:
         with suggestions_box:
             st.download_button(
-                "⬇️ Export chat (Markdown)",
+                "Export chat (Markdown)",
                 data=chat_to_markdown(st.session_state.messages, st.session_state.documents),
                 file_name="askmydocs_chat.md",
                 mime="text/markdown",
+                icon=":material/download:",
             )
 
 
@@ -331,12 +339,12 @@ def main() -> None:
         if not api_key:
             st.error(f"Please add your {PROVIDER_LABELS[cfg.provider]} API key in the sidebar or .env file.")
         else:
-            process_documents(cfg, api_key, SAMPLE_URLS if sample_clicked else None)
+            process_documents(cfg, api_key, SAMPLE_FILES if sample_clicked and not cfg.process_clicked else None)
 
-    with hero.container():
-        render_header(compact=st.session_state.vectorstore is not None)
     if st.session_state.vectorstore is None:
         return
+    with hero.container():
+        render_header(len(st.session_state.documents))
     landing.empty()
 
     chunks = stored_chunks(st.session_state.vectorstore)
@@ -348,7 +356,7 @@ def main() -> None:
             return None
         return cached_chat_model(cfg.provider, cfg.model, api_key, cfg.temperature)
 
-    chat_tab, studio_tab, library_tab = st.tabs(["💬 Chat", "✨ Studio", "📊 Library"])
+    chat_tab, studio_tab, library_tab = st.tabs([":material/forum: Chat", ":material/auto_awesome: Studio", ":material/folder_open: Library"])
     with chat_tab:
         render_chat_tab(cfg, api_key)
     with studio_tab:
@@ -356,10 +364,11 @@ def main() -> None:
     with library_tab:
         render_library(chunks)
         st.download_button(
-            "⬇️ Download full workspace report (chat + Studio)",
+            "Download workspace report (chat + Studio)",
             data=workspace_report(),
             file_name="askmydocs_report.md",
             mime="text/markdown",
+            icon=":material/download:",
         )
 
 

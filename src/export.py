@@ -18,7 +18,7 @@ def chat_to_markdown(messages: list[dict[str, Any]], documents: list[str] | None
 
     lines += ["## Conversation", ""]
     for message in messages:
-        speaker = "🧑 **You**" if message["role"] == "user" else "🤖 **AskMyDocs**"
+        speaker = "**You**" if message["role"] == "user" else "**AskMyDocs**"
         lines += [f"### {speaker}", "", message["content"].strip(), ""]
         sources = message.get("sources") or []
         if sources:

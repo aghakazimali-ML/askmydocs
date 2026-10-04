@@ -40,6 +40,7 @@ class StudioError(ValueError):
 class StudioTool:
     key: str
     label: str
+    icon: str  # Material Symbols name, rendered by Streamlit as :material/<icon>:
     description: str
     prompt: PromptTemplate
     output: str  # "markdown" | "quiz" | "flashcards" | "mindmap"
@@ -49,14 +50,14 @@ class StudioTool:
 TOOLS: dict[str, StudioTool] = {
     t.key: t
     for t in [
-        StudioTool("summary", "📝 Summary", "TL;DR, key points and why it matters.", SUMMARY_PROMPT, "markdown"),
-        StudioTool("insights", "🔍 Insights", "Numbers, people, dates, action items and risks.", INSIGHTS_PROMPT, "markdown"),
-        StudioTool("quiz", "🧠 Quiz", "Test yourself with scored multiple-choice questions.", QUIZ_PROMPT, "quiz"),
-        StudioTool("flashcards", "🃏 Flashcards", "Flip-cards for studying the key concepts.", FLASHCARD_PROMPT, "flashcards"),
-        StudioTool("mindmap", "🗺️ Mind map", "A visual map of the main topics.", MINDMAP_PROMPT, "mindmap"),
-        StudioTool("faq", "❓ FAQ", "Questions a reader would ask, answered.", FAQ_PROMPT, "markdown"),
-        StudioTool("compare", "⚖️ Compare", "Side-by-side comparison of two or more documents.", COMPARE_PROMPT, "markdown", 2),
-        StudioTool("writer", "✍️ Writer", "Turn your documents into an email, report, post and more.", WRITER_PROMPT, "markdown"),
+        StudioTool("summary", "Summary", "summarize", "TL;DR, key points and why it matters.", SUMMARY_PROMPT, "markdown"),
+        StudioTool("insights", "Insights", "insights", "Numbers, people, dates, action items and risks.", INSIGHTS_PROMPT, "markdown"),
+        StudioTool("quiz", "Quiz", "quiz", "Test yourself with scored multiple-choice questions.", QUIZ_PROMPT, "quiz"),
+        StudioTool("flashcards", "Flashcards", "style", "Flip-cards for studying the key concepts.", FLASHCARD_PROMPT, "flashcards"),
+        StudioTool("mindmap", "Mind map", "account_tree", "A visual map of the main topics.", MINDMAP_PROMPT, "mindmap"),
+        StudioTool("faq", "FAQ", "help", "Questions a reader would ask, answered.", FAQ_PROMPT, "markdown"),
+        StudioTool("compare", "Compare", "compare_arrows", "Side-by-side comparison of two or more documents.", COMPARE_PROMPT, "markdown", 2),
+        StudioTool("writer", "Writer", "edit_note", "Turn your documents into an email, report, post and more.", WRITER_PROMPT, "markdown"),
     ]
 }
 
@@ -164,7 +165,7 @@ def parse_mindmap(text: str) -> dict[str, Any]:
     return {"title": str(data.get("title") or "Your documents").strip(), "branches": branches}
 
 
-_PALETTE = ["#6366F1", "#EC4899", "#14B8A6", "#F59E0B", "#8B5CF6", "#0EA5E9", "#EF4444"]
+_PALETTE = ["#0F766E", "#C2410C", "#0E7490", "#B45309", "#115E59", "#9A3412", "#155E75"]
 
 
 def _dot_label(text: str) -> str:
@@ -176,9 +177,9 @@ def mindmap_to_dot(mindmap: dict[str, Any]) -> str:
     lines = [
         "digraph G {",
         '  graph [rankdir=LR, bgcolor="transparent", nodesep=0.25, ranksep=0.6, size="12,7"];',
-        '  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, penwidth=0];',
+        '  node [shape=box, style="rounded,filled", fontname="Helvetica", margin="0.18,0.08", fontsize=11, penwidth=0];',
         '  edge [penwidth=1.6, arrowhead=none];',
-        f'  root [label="{_dot_label(mindmap["title"])}", fillcolor="#1E1B4B", fontcolor="white", fontsize=14];',
+        f'  root [label="{_dot_label(mindmap["title"])}", fillcolor="#134E4A", fontcolor="white", fontsize=14];',
     ]
     for i, branch in enumerate(mindmap["branches"]):
         color = _PALETTE[i % len(_PALETTE)]
@@ -203,7 +204,7 @@ def quiz_to_markdown(quiz: list[dict[str, Any]]) -> str:
     lines = ["# Quiz", ""]
     for n, q in enumerate(quiz, start=1):
         lines.append(f"**{n}. {q['question']}**")
-        lines += [f"- {'✅' if i == q['answer_index'] else '▫️'} {opt}" for i, opt in enumerate(q["options"])]
+        lines += [f"- {opt}{' **(correct)**' if i == q['answer_index'] else ''}" for i, opt in enumerate(q["options"])]
         if q["explanation"]:
             lines.append(f"\n_{q['explanation']}_")
         lines.append("")

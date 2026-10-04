@@ -11,7 +11,7 @@ from pathlib import Path
 from langchain_core.documents import Document
 
 # WebBaseLoader warns when no user agent is configured; set a polite default before importing it.
-os.environ.setdefault("USER_AGENT", "AskMyDocs/1.0 (+https://github.com/)")
+os.environ.setdefault("USER_AGENT", "AskMyDocs/1.0 (+https://github.com/aghakazimali-ML/askmydocs)")
 
 from langchain_community.document_loaders import PyPDFLoader, WebBaseLoader  # noqa: E402
 
@@ -122,3 +122,14 @@ def load_url(url: str, timeout: int = 15) -> list[Document]:
 
     title = (docs[0].metadata.get("title") or "").strip() if docs else ""
     return [Document(page_content=text, metadata={"source": url, "page": None, "title": title, "type": "url"})]
+
+
+def load_markdown_sections(path: str | Path) -> list[Document]:
+    """Load a bundled Markdown sample, treating each `## ` section as one page so citations stay precise."""
+    path = Path(path)
+    text = path.read_text(encoding="utf-8")
+    sections = [s.strip() for s in re.split(r"\n(?=## )", text) if s.strip()]
+    return [
+        Document(page_content=section, metadata={"source": path.name, "page": number, "type": "sample"})
+        for number, section in enumerate(sections, start=1)
+    ]
