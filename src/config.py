@@ -9,15 +9,16 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-Provider = Literal["gemini", "openai"]
+Provider = Literal["gemini", "openai", "anthropic"]
 SearchType = Literal["similarity", "mmr"]
 
-PROVIDER_LABELS: dict[str, str] = {"gemini": "Google Gemini", "openai": "OpenAI"}
+PROVIDER_LABELS: dict[str, str] = {"gemini": "Google Gemini", "openai": "OpenAI", "anthropic": "Anthropic Claude"}
 
 # Chat models offered in the sidebar dropdown (first entry is the default).
 CHAT_MODELS: dict[str, list[str]] = {
     "gemini": ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-3.1-pro-preview"],
     "openai": ["gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini", "gpt-5-mini"],
+    "anthropic": ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-4-5"],
 }
 
 
@@ -28,12 +29,16 @@ class Settings(BaseSettings):
 
     google_api_key: str = ""
     openai_api_key: str = ""
+    anthropic_api_key: str = ""
 
     default_provider: Provider = "gemini"
     gemini_chat_model: str = "gemini-3.5-flash"
     gemini_embedding_model: str = "gemini-embedding-001"
     openai_chat_model: str = "gpt-4.1-mini"
     openai_embedding_model: str = "text-embedding-3-small"
+    anthropic_chat_model: str = "claude-opus-5-5"
+    # Anthropic has no embeddings API, so Claude is paired with a free local model (no key, no rate limit).
+    local_embedding_model: str = "BAAI/bge-small-en-v1.5"
 
     temperature: float = Field(default=0.1, ge=0.0, le=1.0)
     chunk_size: int = Field(default=1000, ge=200, le=4000)
@@ -52,15 +57,18 @@ class Settings(BaseSettings):
 
     def chat_model_for(self, provider: str) -> str:
         """Return the configured default chat model for a provider."""
-        return self.gemini_chat_model if provider == "gemini" else self.openai_chat_model
+        return {"gemini": self.gemini_chat_model, "openai": self.openai_chat_model,
+                "anthropic": self.anthropic_chat_model}[provider]
 
     def embedding_model_for(self, provider: str) -> str:
         """Return the configured embedding model for a provider."""
-        return self.gemini_embedding_model if provider == "gemini" else self.openai_embedding_model
+        return {"gemini": self.gemini_embedding_model, "openai": self.openai_embedding_model,
+                "anthropic": self.local_embedding_model}[provider]
 
     def api_key_for(self, provider: str) -> str:
         """Return the API key from the environment for a provider (may be empty)."""
-        return self.google_api_key if provider == "gemini" else self.openai_api_key
+        return {"gemini": self.google_api_key, "openai": self.openai_api_key,
+                "anthropic": self.anthropic_api_key}[provider]
 
 
 @lru_cache(maxsize=1)

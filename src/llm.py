@@ -1,4 +1,4 @@
-"""Factories for chat models and embeddings (Google Gemini or OpenAI), plus API-key helpers."""
+"""Factories for chat models and embeddings (Google Gemini, OpenAI or Anthropic Claude), plus API-key helpers."""
 
 from __future__ import annotations
 
@@ -13,7 +13,10 @@ from src.config import PROVIDER_LABELS
 
 logger = logging.getLogger(__name__)
 
-_SECRET_NAMES = {"gemini": "GOOGLE_API_KEY", "openai": "OPENAI_API_KEY"}
+_SECRET_NAMES = {"gemini": "GOOGLE_API_KEY", "openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
+
+# Opus 5.5 can hand an overloaded request to another Claude model on Anthropic's side instead of failing.
+_SERVER_FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 
 class MissingAPIKeyError(ValueError):
@@ -61,13 +64,29 @@ def get_chat_model(provider: str, model: str, api_key: str, temperature: float =
         if _supports_temperature(model):
             kwargs["temperature"] = temperature
         return ChatOpenAI(**kwargs)
+    if provider == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+
+        kwargs = {"model": model, "api_key": api_key, "max_retries": 2, "max_tokens": 16000, "streaming": True}
+        # Opus 5.5 and Sonnet 5.5 reject non-default sampling parameters; Haiku 4.5 accepts temperature.
+        if model.startswith("claude-haiku"):
+            kwargs["temperature"] = temperature
+        if model == "claude-opus-5-5":
+            kwargs["betas"] = [_SERVER_FALLBACK_BETA]
+            kwargs["model_kwargs"] = {"fallbacks": "default"}
+        return ChatAnthropic(**kwargs)
     raise ValueError(f"Unknown provider: {provider}")
 
 
 def get_embeddings(provider: str, model: str, api_key: str) -> Embeddings:
     """Create the embeddings client matching the chat provider."""
-    _require_key(provider, api_key)
     logger.info("Creating embeddings %s/%s", provider, model)
+    if provider == "anthropic":
+        # Runs on this machine: no API key, no cost, no rate limit. The model downloads once (~130 MB).
+        from langchain_community.embeddings import FastEmbedEmbeddings
+
+        return FastEmbedEmbeddings(model_name=model)
+    _require_key(provider, api_key)
     if provider == "gemini":
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
@@ -84,7 +103,7 @@ def describe_provider_error(exc: Exception) -> str:
     if isinstance(exc, MissingAPIKeyError):
         return str(exc)
     text = f"{type(exc).__name__}: {exc}".lower()
-    if any(s in text for s in ("api key not valid", "api_key_invalid", "incorrect api key", "invalid_api_key",
+    if any(s in text for s in ("api key not valid", "api_key_invalid", "x-api-key", "incorrect api key", "invalid_api_key",
                                "authentication", "unauthorized", "401", "permission_denied")):
         return "Your API key was rejected. Please check that it is correct and belongs to the selected provider."
     if any(s in text for s in ("quota", "rate limit", "ratelimit", "resource_exhausted", "resourceexhausted", "429")):

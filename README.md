@@ -44,7 +44,7 @@
 - **Honest "I don't know"**: if the answer isn't in your documents, it replies *"I couldn't find that in your documents."*
 - **Conversational memory**: follow-ups like *"explain the second point more"* are rewritten into standalone questions before retrieval
 - **Token-by-token streaming** answers
-- **Two providers**: Google Gemini (default, free tier) or OpenAI, switchable in the sidebar
+- **Three providers**: Google Gemini (default, free tier), OpenAI or Anthropic Claude, switchable in the sidebar. With Claude, documents are embedded locally with FastEmbed, so indexing is free and has no rate limit
 - **Tunable retrieval**: chunk size/overlap, top-k, similarity or MMR search
 - **Smart caching**: files are SHA-256 hashed, so re-uploading the same file never re-embeds it
 - **Suggested questions** generated from your documents after processing
@@ -58,7 +58,7 @@
 flowchart LR
     A[📄 Upload PDFs / 🌐 URLs] --> B[Load<br/>PyPDFLoader · WebBaseLoader]
     B --> C[Split<br/>RecursiveCharacterTextSplitter]
-    C --> D[Embed<br/>Gemini / OpenAI embeddings]
+    C --> D[Embed<br/>Gemini / OpenAI / local FastEmbed]
     D --> E[(FAISS<br/>vector store)]
     Q[💬 Question + chat history] --> R[Rewrite to standalone question]
     R --> F[Retriever<br/>similarity / MMR, top-k]
@@ -77,7 +77,7 @@ The RAG pipeline is written in **plain LCEL** (`langchain-core` runnables), with
 | Language | Python 3.11 |
 | UI | Streamlit (`st.chat_message`, `st.chat_input`, `st.write_stream`) |
 | RAG framework | LangChain LCEL (`langchain-core`, `langchain-community`, `langchain-text-splitters`) |
-| LLMs | Google Gemini (`langchain-google-genai`), OpenAI (`langchain-openai`) |
+| LLMs | Google Gemini (`langchain-google-genai`), OpenAI (`langchain-openai`), Anthropic Claude (`langchain-anthropic`) + FastEmbed local embeddings |
 | Embeddings | `gemini-embedding-001` / `text-embedding-3-small` |
 | Vector store | FAISS (CPU, local) |
 | Loaders | `pypdf` via `PyPDFLoader`, `WebBaseLoader` + BeautifulSoup |
@@ -126,6 +126,7 @@ docker run --rm -p 8501:8501 --env-file .env -v "$(pwd)/vectorstore:/app/vectors
    ```toml
    GOOGLE_API_KEY = "your-gemini-key"
    # OPENAI_API_KEY = "sk-..."   # optional
+   # ANTHROPIC_API_KEY = "sk-ant-..."   # optional
    ```
 6. Click **Deploy**. After a minute or two your app is live at `https://<your-app>.streamlit.app`.
 7. Put that URL in the **Live demo** link above.
@@ -140,11 +141,14 @@ All settings can be set as environment variables or in `.env`. Sidebar values ov
 |---|---|---|
 | `GOOGLE_API_KEY` | _(empty)_ | Gemini API key |
 | `OPENAI_API_KEY` | _(empty)_ | OpenAI API key |
+| `ANTHROPIC_API_KEY` | _(empty)_ | Anthropic Claude API key |
 | `DEFAULT_PROVIDER` | `gemini` | `gemini` or `openai` |
 | `GEMINI_CHAT_MODEL` | `gemini-3.5-flash` | Default Gemini chat model |
 | `GEMINI_EMBEDDING_MODEL` | `gemini-embedding-001` | Gemini embedding model |
 | `OPENAI_CHAT_MODEL` | `gpt-4.1-mini` | Default OpenAI chat model |
 | `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | OpenAI embedding model |
+| `ANTHROPIC_CHAT_MODEL` | `claude-opus-5-5` | Default Claude chat model |
+| `LOCAL_EMBEDDING_MODEL` | `BAAI/bge-small-en-v1.5` | FastEmbed model used with Claude |
 | `TEMPERATURE` | `0.1` | Sampling temperature (0–1) |
 | `CHUNK_SIZE` | `1000` | Characters per chunk |
 | `CHUNK_OVERLAP` | `150` | Characters shared between neighbouring chunks |
@@ -185,7 +189,7 @@ askmydocs/
 │   ├── loaders.py             # PDF + URL loading, validation, metadata
 │   ├── splitter.py            # chunking + chunk_id metadata
 │   ├── vectorstore.py         # FAISS build/save/load, SHA-256 hashing
-│   ├── llm.py                 # Gemini/OpenAI chat + embeddings factory, error messages
+│   ├── llm.py                 # Gemini/OpenAI/Claude chat + embeddings factory, error messages
 │   ├── chain.py               # history-aware RAG chain (LCEL), streaming
 │   ├── prompts.py             # all prompt templates
 │   ├── suggestions.py         # suggested-question generation

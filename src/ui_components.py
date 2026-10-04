@@ -186,7 +186,13 @@ def render_sidebar(settings: Settings, indexed_documents: list[str]) -> SidebarS
             placeholder="Optional if the app has a key",
             help="Your key is only kept in this browser session and never stored on disk.",
         )
-        temperature = st.slider("Creativity (temperature)", 0.0, 1.0, float(settings.temperature), 0.05)
+        if provider == "anthropic":
+            st.caption("Documents are indexed on this server for free; only chat uses your Claude key.")
+        temperature = st.slider(
+            "Creativity (temperature)", 0.0, 1.0, float(settings.temperature), 0.05,
+            disabled=provider == "anthropic" and not model.startswith("claude-haiku"),
+            help="Claude Opus and Sonnet 5.5 use a fixed temperature.",
+        )
 
         with st.expander("Advanced retrieval", expanded=False):
             chunk_size = st.number_input("Chunk size", 200, 4000, settings.chunk_size, 50)
