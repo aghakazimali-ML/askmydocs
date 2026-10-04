@@ -80,3 +80,12 @@ def delete_vectorstore(directory: str | Path) -> None:
     """Remove a saved index from disk (no-op if it does not exist)."""
     shutil.rmtree(Path(directory), ignore_errors=True)
     logger.info("Deleted saved vector store at %s", directory)
+
+
+def stored_chunks(store: FAISS | None) -> list[Document]:
+    """All chunks held in a FAISS index, in insertion order (works for freshly built and reloaded indexes)."""
+    if store is None:
+        return []
+    ids = list(getattr(store, "index_to_docstore_id", {}).values())
+    docs = getattr(store.docstore, "_dict", {})
+    return [docs[i] for i in ids if i in docs]

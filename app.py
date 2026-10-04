@@ -14,15 +14,17 @@ from src.llm import describe_provider_error, get_chat_model, get_embeddings, res
 from src.loaders import DocumentLoadError, load_pdf_bytes, load_url, parse_urls
 from src.prompts import NOT_FOUND_MESSAGE
 from src.splitter import split_documents
+from src.studio import library_stats
+from src.studio_ui import render_library, render_studio
 from src.suggestions import generate_suggested_questions
 from src.ui_components import (
     SidebarState,
     inject_css,
     render_empty_state,
     render_header,
-    render_processing_summary,
     render_sidebar,
     render_sources,
+    render_stats,
     render_suggestions,
 )
 from src.vectorstore import (
@@ -33,12 +35,18 @@ from src.vectorstore import (
     load_vectorstore,
     read_manifest,
     save_vectorstore,
+    stored_chunks,
 )
 
-st.set_page_config(page_title="AskMyDocs", page_icon="📚", layout="centered")
+st.set_page_config(page_title="AskMyDocs · Chat with your documents", page_icon="📚", layout="wide")
 settings = get_settings()
 setup_logging(settings.log_level)
 logger = logging.getLogger("askmydocs")
+
+SAMPLE_URLS = [
+    "https://en.wikipedia.org/wiki/Retrieval-augmented_generation",
+    "https://en.wikipedia.org/wiki/Large_language_model",
+]
 
 
 # ---------- cached clients ----------
@@ -64,6 +72,11 @@ DEFAULT_STATE: dict[str, Any] = {
     "last_summary": None,
     "pending_question": None,
     "autoload_checked": False,
+    "studio": {},            # tool key -> result from src.studio.run_tool
+    "quiz_answers": {},
+    "quiz_submitted": False,
+    "card_idx": 0,
+    "card_flipped": False,
 }
 
 
@@ -121,9 +134,10 @@ def try_autoload_index(cfg: SidebarState) -> None:
 
 
 # ---------- ingestion ----------
-def process_documents(cfg: SidebarState, api_key: str) -> None:
+def process_documents(cfg: SidebarState, api_key: str, extra_urls: list[str] | None = None) -> None:
     """Load → split → embed → index all new files and URLs, with progress feedback."""
     urls, invalid_urls = parse_urls(cfg.urls_text)
+    urls += [u for u in extra_urls or [] if u not in urls]
     for entry in invalid_urls:
         st.warning(f"Skipped invalid URL: `{entry}`")
     if not cfg.uploaded_files and not urls:
@@ -217,7 +231,8 @@ def answer_question(question: str, cfg: SidebarState, api_key: str) -> None:
         try:
             llm = cached_chat_model(cfg.provider, cfg.model, api_key, cfg.temperature)
             retriever = build_retriever(st.session_state.vectorstore, cfg.top_k, cfg.search_type)
-            stream = StreamedAnswer(build_rag_chain(llm, retriever), question, history)
+            chain = build_rag_chain(llm, retriever, cfg.answer_style, cfg.language)
+            stream = StreamedAnswer(chain, question, history)
             tokens = iter(stream)
             with st.spinner("Searching your documents…"):
                 first = next(tokens, "")  # retrieval happens before the first token arrives
@@ -240,6 +255,57 @@ def _chain_first(first: str, rest):
     yield from rest
 
 
+def library_summary(chunks) -> dict[str, int]:
+    rows = library_stats(chunks)
+    words = sum(r["Words (approx.)"] for r in rows)
+    return {"documents": len(rows), "pages": sum(r["Pages"] for r in rows), "words": words,
+            "minutes": max(1, round(words / 230)) if words else 0}
+
+
+def render_chat_tab(cfg: SidebarState, api_key: str) -> None:
+    history_box = st.container()
+    suggestions_box = st.container()
+    typed = st.chat_input("Ask a question about your documents…")
+    question = typed or st.session_state.pending_question
+    st.session_state.pending_question = None
+
+    with history_box:
+        for i, message in enumerate(st.session_state.messages):
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+                render_sources(message.get("sources", []))
+                if message["role"] == "assistant":
+                    st.feedback("thumbs", key=f"fb_{i}")
+        if question:
+            if not api_key:
+                st.error(f"Please add your {PROVIDER_LABELS[cfg.provider]} API key in the sidebar first.")
+            else:
+                answer_question(question, cfg, api_key)
+
+    if not st.session_state.messages and not question:
+        with suggestions_box:
+            clicked = render_suggestions(st.session_state.suggestions)
+            if clicked:
+                st.session_state.pending_question = clicked
+                st.rerun()
+
+    if st.session_state.messages:
+        with suggestions_box:
+            st.download_button(
+                "⬇️ Export chat (Markdown)",
+                data=chat_to_markdown(st.session_state.messages, st.session_state.documents),
+                file_name="askmydocs_chat.md",
+                mime="text/markdown",
+            )
+
+
+def workspace_report() -> str:
+    """Chat plus every Studio result in one Markdown file."""
+    parts = [chat_to_markdown(st.session_state.messages, st.session_state.documents)]
+    parts += [result["markdown"] for result in st.session_state.studio.values()]
+    return "\n\n---\n\n".join(parts)
+
+
 def main() -> None:
     init_state()
     inject_css()
@@ -254,46 +320,45 @@ def main() -> None:
         st.rerun()
 
     try_autoload_index(cfg)
-    render_header()
+    hero, landing = st.empty(), st.empty()  # filled after processing so they reflect the new state
 
-    if cfg.process_clicked:
+    sample_clicked = False
+    if st.session_state.vectorstore is None:
+        with landing.container():
+            sample_clicked = render_empty_state()
+
+    if cfg.process_clicked or sample_clicked:
         if not api_key:
             st.error(f"Please add your {PROVIDER_LABELS[cfg.provider]} API key in the sidebar or .env file.")
         else:
-            process_documents(cfg, api_key)
+            process_documents(cfg, api_key, SAMPLE_URLS if sample_clicked else None)
 
+    with hero.container():
+        render_header(compact=st.session_state.vectorstore is not None)
     if st.session_state.vectorstore is None:
-        render_empty_state()
         return
+    landing.empty()
 
-    if st.session_state.last_summary:
-        render_processing_summary(st.session_state.last_summary)
+    chunks = stored_chunks(st.session_state.vectorstore)
+    render_stats(library_summary(chunks))
 
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-            render_sources(message.get("sources", []))
-
-    if not st.session_state.messages:
-        clicked = render_suggestions(st.session_state.suggestions)
-        if clicked:
-            st.session_state.pending_question = clicked
-            st.rerun()
-
-    question = st.chat_input("Ask a question about your documents…")
-    question = question or st.session_state.pending_question
-    st.session_state.pending_question = None
-    if question:
+    def get_llm():
         if not api_key:
-            st.error(f"Please add your {PROVIDER_LABELS[cfg.provider]} API key first.")
-        else:
-            answer_question(question, cfg, api_key)
+            st.error(f"Please add your {PROVIDER_LABELS[cfg.provider]} API key in the sidebar first.")
+            return None
+        return cached_chat_model(cfg.provider, cfg.model, api_key, cfg.temperature)
 
-    if st.session_state.messages:
+    chat_tab, studio_tab, library_tab = st.tabs(["💬 Chat", "✨ Studio", "📊 Library"])
+    with chat_tab:
+        render_chat_tab(cfg, api_key)
+    with studio_tab:
+        render_studio(chunks, get_llm, cfg.language)
+    with library_tab:
+        render_library(chunks)
         st.download_button(
-            "⬇️ Export chat (Markdown)",
-            data=chat_to_markdown(st.session_state.messages, st.session_state.documents),
-            file_name="askmydocs_chat.md",
+            "⬇️ Download full workspace report (chat + Studio)",
+            data=workspace_report(),
+            file_name="askmydocs_report.md",
             mime="text/markdown",
         )
 

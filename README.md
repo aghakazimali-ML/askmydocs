@@ -15,6 +15,25 @@
 
 ## ✨ Features
 
+### ✨ Studio: turn documents into useful outputs
+- **📝 Summary**: TL;DR, key points and "why it matters", in three lengths
+- **🔍 Insights**: key numbers, people and organizations, dates, action items and risks
+- **🧠 Quiz**: scored multiple-choice quiz with explanations (easy / medium / hard)
+- **🃏 Flashcards**: flip-card study deck with shuffle and progress
+- **🗺️ Mind map**: visual Graphviz map of the main topics
+- **❓ FAQ**: questions a reader would ask, answered from the documents
+- **⚖️ Compare**: side-by-side table of two or more documents
+- **✍️ Writer**: emails, executive reports, LinkedIn posts, meeting notes, proposals and more, with tone control
+- Every Studio result can be downloaded as Markdown, or bundled with the chat in one **workspace report**
+
+### 💬 Chat
+- **5 answer styles** (Concise, Detailed, Bullet points, Simple/ELI5, Executive) and **10 answer languages**
+- 👍 / 👎 feedback on every answer
+- **📊 Library dashboard** with per-document pages, words, reading time and top keywords
+- **✨ One-click sample**: visitors can try every feature on two Wikipedia articles without uploading anything
+
+### 🧱 Core
+
 - **Multi-PDF upload** (20 MB per file, enforced with a friendly error) and **URL ingestion** (one per line)
 - **Grounded answers with citations**: every fact is cited inline like `(report.pdf, p. 4)`, plus a **Sources** panel with a preview of each chunk
 - **Honest "I don't know"**: if the answer isn't in your documents, it replies *"I couldn't find that in your documents."*
@@ -64,7 +83,7 @@ The RAG pipeline is written in **plain LCEL** (`langchain-core` runnables), with
 ## 🚀 Quick Start
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/askmydocs.git
+git clone https://github.com/aghakazimali-ML/askmydocs.git
 cd askmydocs
 
 python -m venv .venv
@@ -155,12 +174,15 @@ askmydocs/
 │   ├── prompts.py             # all prompt templates
 │   ├── suggestions.py         # suggested-question generation
 │   ├── export.py              # chat → Markdown
-│   └── ui_components.py       # sidebar, source cards, empty state, CSS
+│   ├── studio.py              # Studio tools (summary, quiz, flashcards, mind map…) + library stats
+│   ├── studio_ui.py           # Studio and Library tab rendering
+│   └── ui_components.py       # theme CSS, hero, sidebar, landing page, source cards
 ├── tests/                     # pytest suite (offline)
 │   ├── conftest.py            # builds sample PDFs in pure Python
 │   ├── test_loaders.py
 │   ├── test_splitter.py
 │   ├── test_chain.py
+│   ├── test_studio.py
 │   └── fixtures/sample.pdf
 ├── .streamlit/config.toml     # theme
 ├── .env.example
@@ -176,16 +198,15 @@ askmydocs/
 - **Hybrid search**: combine BM25 keyword search with vector search for exact terms, codes and names.
 - **Reranking**: add a cross-encoder reranker (e.g. Cohere Rerank or `bge-reranker`) to improve top-k precision.
 - **User auth & multi-tenancy**: per-user indexes and login for team use.
-- **Multi-language**: language detection and multilingual embeddings/prompts.
 - **JavaScript-heavy sites**: `WebBaseLoader` reads static HTML only; pages that render with JavaScript need a headless browser loader.
 - **Provider lock per index**: vectors from one embedding model can't be mixed with another, so switching provider requires **Reset all**.
 
 ## 👤 Author
 
-**Agha Kazim Ali — Python Data Analyst & AI Developer**
+**Agha Kazim Ali, AI Automation & RAG Developer**
 
-- Upwork: [your-upwork-profile](https://www.upwork.com/freelancers/YOUR-PROFILE)
-- LinkedIn: [your-linkedin](https://www.linkedin.com/in/YOUR-PROFILE)
+- Upwork: [Agha Kazim Ali](https://www.upwork.com/freelancers/~014a0a1deb6b2d912d)
+- Website: [Axion.ai](https://axion-ai-nine.vercel.app/)
 - GitHub: [aghakazimali-ML](https://github.com/aghakazimali-ML)
 
 Licensed under the [MIT License](LICENSE).

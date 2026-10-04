@@ -14,7 +14,7 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.runnables import Runnable, RunnableBranch, RunnablePassthrough
 from langchain_core.vectorstores import VectorStore
 
-from src.prompts import DOCUMENT_PROMPT, contextualize_prompt, qa_prompt
+from src.prompts import ANSWER_STYLES, DOCUMENT_PROMPT, contextualize_prompt, qa_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +57,10 @@ def build_history_aware_retriever(llm: BaseChatModel, retriever: BaseRetriever) 
     ).with_config(run_name="history_aware_retriever")
 
 
-def build_rag_chain(llm: BaseChatModel, retriever: BaseRetriever) -> Runnable:
-    """Full conversational RAG chain.
+def build_rag_chain(
+    llm: BaseChatModel, retriever: BaseRetriever, style: str = "Concise", language: str = "English"
+) -> Runnable:
+    """Full conversational RAG chain. `style` is a key of ANSWER_STYLES; `language` is the reply language.
 
     Input:  {"input": str, "chat_history": list[BaseMessage]}
     Output: {"input", "chat_history", "context": list[Document], "answer": str}
@@ -66,7 +68,7 @@ def build_rag_chain(llm: BaseChatModel, retriever: BaseRetriever) -> Runnable:
     """
     answer_chain = (
         RunnablePassthrough.assign(context=lambda x: format_docs(x["context"]))
-        | qa_prompt
+        | qa_prompt.partial(style=ANSWER_STYLES.get(style, ANSWER_STYLES["Concise"]), language=language)
         | llm
         | StrOutputParser()
     )
