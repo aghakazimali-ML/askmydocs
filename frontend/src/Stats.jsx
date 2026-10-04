@@ -22,11 +22,15 @@ export default function Stats({ stats }) {
     { icon: Clock, label: "Reading time", value: stats.minutes, suffix: " min" },
   ];
   return (
-    <div className="stats">
+    <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-zinc-200 bg-white md:grid-cols-4">
       {items.map(({ icon: Icon, label, value, suffix }, i) => (
-        <motion.div key={label} className="stat" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05, duration: 0.4 }}>
-          <div className="icon" style={{ marginBottom: 0 }}><Icon size={19} aria-hidden="true" /></div>
-          <div><div className="v"><Counter value={value} suffix={suffix} /></div><div className="l">{label}</div></div>
+        <motion.div key={label} initial={{ opacity: 0, filter: "blur(6px)" }} animate={{ opacity: 1, filter: "blur(0px)" }}
+          transition={{ delay: i * 0.08, duration: 0.4 }}
+          className="flex flex-col gap-1 border-zinc-200 px-5 py-4 [&:not(:last-child)]:border-r max-md:[&:nth-child(2)]:border-r-0 max-md:[&:nth-child(-n+2)]:border-b">
+          <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-400">
+            <Icon size={12} aria-hidden="true" />{label}
+          </span>
+          <span className="text-2xl font-semibold tabular-nums tracking-tight text-slate-900"><Counter value={value} suffix={suffix} /></span>
         </motion.div>
       ))}
     </div>

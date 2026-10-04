@@ -32,31 +32,31 @@ export default function Flashcards({ cards: initial }) {
   const slide = reduce ? {} : { initial: { opacity: 0, x: 60 * dir }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -60 * dir } };
 
   return (
-    <div className="deck">
+    <div className="px-0.5 pb-2 pt-1">
       <AnimatePresence mode="wait" custom={dir}>
         <motion.div key={idx + card.front} {...slide} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           drag={reduce ? false : "x"} dragConstraints={{ left: 0, right: 0 }} dragElastic={0.4}
           onDragEnd={(_, info) => { if (info.offset.x < -80) go(1); else if (info.offset.x > 80) go(-1); }}>
-          <div className="scene" role="button" tabIndex={0} aria-label={flipped ? `Answer: ${card.back}` : `Question: ${card.front}. Press to flip.`} onClick={() => setFlipped(!flipped)}>
-            <motion.div className="card3d" animate={{ rotateY: flipped ? 180 : 0 }} transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 24 }}>
-              <div className="face front"><small>Question · {idx + 1} / {cards.length}</small><div className="txt">{card.front}</div></div>
-              <div className="face back"><small>Answer</small><div className="txt">{card.back}</div></div>
+          <div className="h-[260px] cursor-pointer [perspective:1400px] focus-visible:outline-3 focus-visible:outline-blue-500 rounded-3xl" role="button" tabIndex={0} aria-label={flipped ? `Answer: ${card.back}` : `Question: ${card.front}. Press to flip.`} onClick={() => setFlipped(!flipped)}>
+            <motion.div className="relative h-full w-full [transform-style:preserve-3d]" animate={{ rotateY: flipped ? 180 : 0 }} transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 24 }}>
+              <div className="face border border-zinc-200 bg-white text-slate-900 shadow-[0_20px_60px_-25px_rgba(0,0,0,0.15)]"><small>Question · {idx + 1} / {cards.length}</small><div className="text-xl font-semibold leading-snug tracking-tight">{card.front}</div></div>
+              <div className="face bg-neutral-900 text-white [transform:rotateY(180deg)]"><small>Answer</small><div className="text-xl font-semibold leading-snug tracking-tight">{card.back}</div></div>
             </motion.div>
           </div>
         </motion.div>
       </AnimatePresence>
-      <div className="deck-controls">
-        <div className="group">
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <div className="flex gap-2">
           <button className="iconbtn" onClick={() => go(-1)} aria-label="Previous card"><ChevronLeft size={20} /></button>
           <button className="iconbtn" onClick={() => go(1)} aria-label="Next card"><ChevronRight size={20} /></button>
         </div>
-        <div className="dots" aria-hidden="true">{cards.map((_, i) => <motion.i key={i} layout className={i === idx ? "on" : ""} />)}</div>
-        <div className="group">
+        <div className="flex flex-wrap justify-center gap-1.5" aria-hidden="true">{cards.map((_, i) => <motion.i key={i} layout className={`block h-2 rounded-full ${i === idx ? "w-6 bg-neutral-900" : "w-2 bg-zinc-300"}`} />)}</div>
+        <div className="flex gap-2">
           <button className="iconbtn" onClick={() => setFlipped(!flipped)} aria-label="Flip card"><RotateCcw size={18} /></button>
           <button className="iconbtn" onClick={shuffle} aria-label="Shuffle cards"><Shuffle size={18} /></button>
         </div>
       </div>
-      <div className="kbd">Click the card or press Space to flip · arrow keys or swipe to move</div>
+      <div className="mt-2.5 text-center text-xs text-neutral-400">Click the card or press Space to flip · arrow keys or swipe to move</div>
     </div>
   );
 }

@@ -33,7 +33,7 @@
 - **✨ One-click sample**: visitors can try every feature on a bundled sample contract and quarterly report, with no upload and no outbound requests
 
 ### 🎨 Design
-- **Design system generated with [UI/UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)**: flat style, teal + orange palette, Plus Jakarta Sans, SVG icons only. Tokens and rules live in [`design-system/askmydocs/MASTER.md`](design-system/askmydocs/MASTER.md)
+- **UI built from [21st.dev](https://21st.dev) components**: the landing hero is adapted from 21st.dev's "Hero AI Value Proposition" (ruled grid, blur-in timeline animation, product mockup), and the rest of the app follows its neutral look: Inter, zinc hairlines, black pill buttons, one blue accent. React + Tailwind v4 + Framer Motion, built into a Streamlit custom component.
 - **React + Framer Motion custom Streamlit component** for the animated landing page (live product demo, staggered reveals), count-up stats and 3D flip flashcards with swipe and keyboard support
 - Honors `prefers-reduced-motion`; WCAG AA contrast on primary actions
 
@@ -195,7 +195,7 @@ askmydocs/
 │   ├── motion/                # Streamlit custom component wrapper + compiled React bundle (dist/)
 │   └── ui_components.py       # theme CSS, hero, sidebar, landing page, source cards
 ├── frontend/                  # React + Framer Motion source for src/motion (Vite)
-├── design-system/             # UI/UX Pro Max design system (MASTER.md)
+├── design-system/             # earlier UI/UX Pro Max tokens (kept for reference)
 ├── docs/samples/              # bundled sample documents for the one-click demo
 ├── tests/                     # pytest suite (offline)
 │   ├── conftest.py            # builds sample PDFs in pure Python

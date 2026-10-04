@@ -165,7 +165,7 @@ def parse_mindmap(text: str) -> dict[str, Any]:
     return {"title": str(data.get("title") or "Your documents").strip(), "branches": branches}
 
 
-_PALETTE = ["#0F766E", "#C2410C", "#0E7490", "#B45309", "#115E59", "#9A3412", "#155E75"]
+_PALETTE = ["#171717", "#2563EB", "#404040", "#1D4ED8", "#525252", "#3B82F6", "#737373"]
 
 
 def _dot_label(text: str) -> str:
@@ -179,7 +179,7 @@ def mindmap_to_dot(mindmap: dict[str, Any]) -> str:
         '  graph [rankdir=LR, bgcolor="transparent", nodesep=0.25, ranksep=0.6, size="12,7"];',
         '  node [shape=box, style="rounded,filled", fontname="Helvetica", margin="0.18,0.08", fontsize=11, penwidth=0];',
         '  edge [penwidth=1.6, arrowhead=none];',
-        f'  root [label="{_dot_label(mindmap["title"])}", fillcolor="#134E4A", fontcolor="white", fontsize=14];',
+        f'  root [label="{_dot_label(mindmap["title"])}", fillcolor="#171717", fontcolor="white", fontsize=14];',
     ]
     for i, branch in enumerate(mindmap["branches"]):
         color = _PALETTE[i % len(_PALETTE)]

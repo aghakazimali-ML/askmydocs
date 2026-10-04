@@ -172,12 +172,12 @@ def render_library(chunks: list[Document]) -> None:
     with col1:
         st.markdown("<div class='amd-section'>Size by document (words)</div>", unsafe_allow_html=True)
         sizes = pd.DataFrame({"Document": [r["Document"][:40] for r in rows], "Words": [r["Words (approx.)"] for r in rows]})
-        st.bar_chart(sizes, x="Document", y="Words", horizontal=True, color="#0F766E")
+        st.bar_chart(sizes, x="Document", y="Words", horizontal=True, color="#171717")
     with col2:
         st.markdown("<div class='amd-section'>Top keywords</div>", unsafe_allow_html=True)
         keywords = top_keywords(chunks)
         if keywords:
             kw = pd.DataFrame(keywords, columns=["Keyword", "Mentions"])
-            st.bar_chart(kw, x="Keyword", y="Mentions", horizontal=True, color="#EA580C")
+            st.bar_chart(kw, x="Keyword", y="Mentions", horizontal=True, color="#2563EB")
         else:
             st.caption("Not enough text to find keywords.")
