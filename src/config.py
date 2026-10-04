@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     url_timeout_seconds: int = Field(default=15, ge=1)
     max_history_turns: int = Field(default=6, ge=0)
     vectorstore_dir: str = "vectorstore"
+    # Off by default: a saved index on a shared server would be reloaded for every visitor.
+    # Turn on only for a private, single-user install.
+    persist_index: bool = False
     log_level: str = "INFO"
 
     def chat_model_for(self, provider: str) -> str:

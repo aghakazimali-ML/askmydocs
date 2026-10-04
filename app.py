@@ -89,7 +89,7 @@ def reset_state(delete_saved: bool) -> None:
     for key, value in DEFAULT_STATE.items():
         st.session_state[key] = value.copy() if isinstance(value, (dict, list)) else value
     st.session_state.autoload_checked = True
-    if delete_saved:
+    if delete_saved and settings.persist_index:
         delete_vectorstore(settings.vectorstore_dir)
 
 
@@ -108,7 +108,7 @@ def key_for(provider: str, sidebar_key: str) -> str:
 # ---------- persistence ----------
 def try_autoload_index(cfg: SidebarState) -> None:
     """Reload a previously saved FAISS index once per session, if a matching API key is available."""
-    if st.session_state.autoload_checked or st.session_state.vectorstore is not None:
+    if not settings.persist_index or st.session_state.autoload_checked or st.session_state.vectorstore is not None:
         return
     manifest = read_manifest(settings.vectorstore_dir)
     if not manifest:
@@ -207,16 +207,8 @@ def process_documents(cfg: SidebarState, api_key: str, samples: list[Path] | Non
 
     st.session_state.all_chunks.extend(new_chunks_all)
     st.session_state.last_summary = summary
-    save_vectorstore(
-        st.session_state.vectorstore,
-        settings.vectorstore_dir,
-        {
-            "provider": cfg.provider,
-            "embedding_model": emb_model,
-            "documents": st.session_state.documents,
-            "file_hashes": st.session_state.file_hashes,
-        },
-    )
+    if settings.persist_index:
+        _save_index(cfg.provider, emb_model)
     with st.spinner("Generating suggested questions…"):
         try:
             llm = cached_chat_model(cfg.provider, cfg.model, api_key, cfg.temperature)
@@ -224,6 +216,19 @@ def process_documents(cfg: SidebarState, api_key: str, samples: list[Path] | Non
         except Exception as exc:
             logger.warning("Suggestions skipped: %s", exc)
     st.success(f"Indexed {summary['files']} source(s): {summary['pages']} pages, {summary['chunks']} chunks.", icon=":material/check_circle:")
+
+
+def _save_index(provider: str, emb_model: str) -> None:
+    save_vectorstore(
+        st.session_state.vectorstore,
+        settings.vectorstore_dir,
+        {
+            "provider": provider,
+            "embedding_model": emb_model,
+            "documents": st.session_state.documents,
+            "file_hashes": st.session_state.file_hashes,
+        },
+    )
 
 
 # ---------- chat ----------

@@ -49,7 +49,7 @@
 - **Smart caching**: files are SHA-256 hashed, so re-uploading the same file never re-embeds it
 - **Suggested questions** generated from your documents after processing
 - **Export chat** to Markdown, including sources
-- **Persistent index**: the FAISS index is saved to `vectorstore/` and reloaded on restart
+- **Private by default**: each browser session gets its own in-memory index, so visitors never see each other's documents. Set `PERSIST_INDEX=true` to save the index to `vectorstore/` on a private, single-user install
 - **Friendly errors** for scanned/empty PDFs, broken URLs and wrong API keys (no stack traces)
 
 ## 🏗️ Architecture
@@ -130,7 +130,7 @@ docker run --rm -p 8501:8501 --env-file .env -v "$(pwd)/vectorstore:/app/vectors
 6. Click **Deploy**. After a minute or two your app is live at `https://<your-app>.streamlit.app`.
 7. Put that URL in the **Live demo** link above.
 
-> Note: Community Cloud storage is temporary, so the saved `vectorstore/` lasts until the app restarts.
+> Note: leave `PERSIST_INDEX` off on Community Cloud. The app is public and shared, so a saved index would be visible to every visitor.
 
 ## ⚙️ Configuration
 
@@ -154,6 +154,7 @@ All settings can be set as environment variables or in `.env`. Sidebar values ov
 | `URL_TIMEOUT_SECONDS` | `15` | Timeout when fetching web pages |
 | `MAX_HISTORY_TURNS` | `6` | Past Q&A turns used to rewrite follow-ups |
 | `VECTORSTORE_DIR` | `vectorstore` | Where the FAISS index is saved |
+| `PERSIST_INDEX` | `false` | Save/reload the index on disk. Only for private, single-user installs |
 | `LOG_LEVEL` | `INFO` | Python logging level |
 
 ## 🎞️ Rebuilding the animated components
