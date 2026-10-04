@@ -9,7 +9,7 @@
 
 ![Demo](docs/demo.gif)
 
-🔗 **Live demo:** [askmydocs.streamlit.app](https://YOUR-APP-NAME.streamlit.app) _(replace with your deployed URL)_
+🔗 **Live demo:** [kazim-askmydocs.streamlit.app](https://kazim-askmydocs.streamlit.app)
 
 ---
 
